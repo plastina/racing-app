@@ -33,6 +33,9 @@ public sealed class LightingSettings
 
     public LedEditorState? RamUi { get; set; }
 
+    /// <summary>Fan headers as last applied; resumed whenever the app starts (the BIOS controls them otherwise).</summary>
+    public List<FanSettings>? Fans { get; set; }
+
     public static string FolderPath { get; } =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "RacingStudio");
 

@@ -7,6 +7,7 @@ namespace RacingApp;
 public sealed class TrayIcon : IDisposable
 {
     private readonly Forms.NotifyIcon _icon;
+    private Action? _messageClicked;
 
     public TrayIcon(Action open, Action exit)
     {
@@ -27,10 +28,14 @@ public sealed class TrayIcon : IDisposable
             if (e.Button == Forms.MouseButtons.Left)
                 open();
         };
+        _icon.BalloonTipClicked += (_, _) => _messageClicked?.Invoke();
     }
 
-    public void ShowMessage(string text) =>
+    public void ShowMessage(string text, Action? clicked = null)
+    {
+        _messageClicked = clicked;
         _icon.ShowBalloonTip(4000, "Racing Studio", text, Forms.ToolTipIcon.Info);
+    }
 
     public void Dispose()
     {

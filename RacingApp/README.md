@@ -7,6 +7,16 @@ usa **LibreHardwareMonitorLib 0.9.6 + PawnIO**.
 
 - **Monitoramento** (atualiza a cada 1 s): temperaturas, fans e tensões da placa com os nomes e divisores
   do `Config.ini` da BIOSTAR (via `RacingMonitor/BoardProfile.cs`), mais as temperaturas da CPU.
+- **Controle das fans** (`FanControl.cs`, `FanChannelView.cs`): para cada saída PWM do Super I/O que o
+  LibreHardwareMonitor sabe controlar (com perfil, só os conectores que a BIOSTAR rotula; controle #n ↔ fan #n),
+  escolha **Automático (BIOS)**, **velocidade fixa** (0–100 %) ou **curva por temperatura** (dois pontos
+  °C → %, linear entre eles, seguindo qualquer sensor de temperatura da lista). O app escreve a cada leitura
+  de sensores (1 s); a curva sobe na hora e desce no máximo 3 %/s. Segurança: a fan da CPU nunca fica abaixo
+  de 25 %; com a CPU acima de 90 °C todas as fans controladas pelo app vão a 100 %; uma curva cujo sensor
+  sumiu roda a 100 %. **Aplicar nas fans** salva em `settings.json` e a configuração é retomada sempre que o
+  app abre; **Tudo no BIOS** devolve o controle. Ao sair do app, as fans voltam ao BIOS (o
+  `SuperIOHardware.Close()` do LHM restaura os registradores), então o controle só vale com o app aberto
+  (inclusive na bandeja). O `--apply-saved` não aplica fans, pelo mesmo motivo.
 - **LEDs do conector 5V (ARGB)**: lê cor e efeito atuais ao abrir; sliders R/G/B, campo hex, cores rápidas
   e **efeitos** (estático, respiração, piscar, arco-íris, onda, meteoro, relâmpago, céu estrelado, aurora),
   com **velocidade**; **Aplicar nos LEDs** e **Restaurar original**. Escreve só a cor (`0xA7`–`0xA9`), o modo
@@ -48,8 +58,20 @@ usa **LibreHardwareMonitorLib 0.9.6 + PawnIO**.
 
 ## Requisitos
 
-- Windows, .NET 8 Desktop Runtime, **PawnIO** instalado (`winget install --id namazso.PawnIO --exact --source winget`).
+- Windows, **PawnIO** instalado (`winget install --id namazso.PawnIO --exact --source winget`).
 - O executável pede **administrador** ao abrir (manifesto `requireAdministrator`).
+
+## Releases e atualização automática
+
+Cada push na `main` gera um release no GitHub com um único `RacingStudio.exe` (self-contained, não precisa do
+.NET instalado) e o `RacingStudio.exe.sha256`. A versão é `<version.txt>.<número da execução>`.
+
+Ao abrir, o app (`Updater.cs`) consulta o último release. Se houver versão nova, pergunta se deve atualizar
+(com a janela fechada, por exemplo ao iniciar com o Windows, avisa por notificação na bandeja e pergunta
+quando a janela for aberta). Ao aceitar: baixa o exe, confere o SHA-256, renomeia o exe atual para `.old`,
+coloca o novo no lugar e o reinicia; a nova instância espera a antiga restaurar fans/iluminação e sair, e
+apaga o `.old`. Como o caminho do exe não muda, a tarefa de inicialização continua válida. Builds locais
+(versão `0.0.0`) nunca se atualizam.
 
 ## Compilar e abrir
 
@@ -58,13 +80,20 @@ dotnet build REA.sln -c Release
 .\RacingApp\bin\Release\net8.0-windows\win-x64\RacingApp.exe
 ```
 
+Para gerar o mesmo exe único do release: `dotnet publish RacingApp/RacingApp.csproj -c Release -r win-x64
+--self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+-p:IncludeAllContentForSelfExtract=true -p:EnableCompressionInSingleFile=true -o publish`.
+
 ## Arquitetura
 
 | Arquivo | Papel |
 |---|---|
 | `HardwareService.cs` | Abre o `Computer` do LHM (placa, CPU e memória — esta última ativa a ponte SMBus do PawnIO), lê sensores e localiza o SMBus auxiliar (PawnIO PIIX4 porta 1). |
 | `LedController.cs` | Lê o estado do conector 5V e aplica cores, verificando lendo de volta. |
+| `FanControl.cs` | Modos e curva de cada fan (`FanSettings`) e o `FanController`, que calcula e escreve o duty a cada leitura de sensores. |
+| `FanChannelView.cs` | Uma linha do painel de fans: edição, validação e RPM/duty ao vivo. |
 | `MainWindow.xaml(.cs)` | Interface; leituras e escritas rodam fora da thread da UI. |
+| `Updater.cs` | Consulta o último release no GitHub, baixa/verifica o novo exe e o troca pelo atual. |
 
 Todo acesso ao hardware passa por `HardwareService.Gate`, para que atualizações de sensores e escritas nos
 LEDs nunca intercalem transações no SMBus.

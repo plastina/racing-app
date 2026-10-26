@@ -15,7 +15,9 @@ public static class StartupTask
 {
     public const string TaskName = "Racing Studio - aplicar iluminação";
 
-    private static string ExePath => Path.Combine(AppContext.BaseDirectory, "RacingApp.exe");
+    // Not AppContext.BaseDirectory: in the single-file release that is the extraction folder, and the exe is
+    // named RacingStudio.exe.
+    private static string ExePath => Environment.ProcessPath!;
 
     public static bool Exists() => RunSchtasks($"/Query /TN \"{TaskName}\"", out _) == 0;
 

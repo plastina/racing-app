@@ -1,0 +1,121 @@
+name: CI and release
+
+# Every push to main builds and, if the build passes, publishes a GitHub release with a single RacingStudio.exe.
+# The version is "<version.txt>.<run number>", for example 0.1.7: edit version.txt to move to 0.2, 1.0 and so on.
+# Pull requests only build. You can also run it by hand (Actions tab).
+# The app checks the latest release when it starts (see RacingApp/Updater.cs), so the asset name RacingStudio.exe
+# and the RacingStudio.exe.sha256 next to it are part of that contract.
+# If the SIGNPATH_ORGANIZATION_ID repository variable is set, the exe is code-signed first.
+on:
+  push:
+    branches: [main]
+    # Documentation and the console prototype's probe scripts/results don't change the app.
+    paths-ignore:
+      - '**/*.md'
+      - 'LICENSE'
+      - 'RacingMonitor/*.txt'
+      - 'RacingMonitor/*.cmd'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One release at a time; a newer push waits instead of racing the previous one.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Build
+        run: dotnet build REA.sln -c Release --nologo
+
+  release:
+    needs: build
+    if: ${{ github.event_name != 'pull_request' }}
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Work out the version
+        shell: pwsh
+        run: |
+          $base = (Get-Content version.txt -Raw).Trim()
+          $version = "$base.${{ github.run_number }}"
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "version.txt must hold MAJOR.MINOR (for example 0.1); got '$base'." }
+          "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "EXE_NAME=RacingStudio.exe" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host "Releasing $version"
+
+      # IncludeAllContentForSelfExtract puts BoardConfig.ini and app.ico inside the exe as well, so the download is
+      # really a single file (the app reads them from AppContext.BaseDirectory, which then is the extraction folder).
+      - name: Publish single-file executable
+        shell: pwsh
+        run: |
+          dotnet publish RacingApp/RacingApp.csproj -c Release -r win-x64 --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:IncludeAllContentForSelfExtract=true `
+            -p:EnableCompressionInSingleFile=true `
+            -p:Version=$env:VERSION `
+            -o publish
+          Move-Item publish/RacingApp.exe "publish/$env:EXE_NAME"
+
+      # --- Optional code signing with SignPath (free for open-source projects) ---
+      - name: Upload the unsigned executable
+        id: unsigned
+        if: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-executable
+          path: publish/${{ env.EXE_NAME }}
+
+      - name: Sign with SignPath
+        if: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG || 'racing-app' }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG || 'release-signing' }}
+          github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: signed
+
+      - name: Use the signed executable
+        if: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
+        shell: pwsh
+        run: Copy-Item "signed/$env:EXE_NAME" "publish/$env:EXE_NAME" -Force
+
+      # The checksum is of the file people (and the updater) will actually download, so it comes after signing.
+      - name: Write the checksum
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash "publish/$env:EXE_NAME" -Algorithm SHA256).Hash.ToLower()
+          "$hash  $env:EXE_NAME" | Out-File "publish/$env:EXE_NAME.sha256" -Encoding ascii
+
+      - name: Create the release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.VERSION }}
+          target_commitish: ${{ github.sha }}
+          name: Racing Studio ${{ env.VERSION }}
+          files: |
+            publish/${{ env.EXE_NAME }}
+            publish/${{ env.EXE_NAME }}.sha256
+          generate_release_notes: true

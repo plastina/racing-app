@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:RacingApp"
-        Title="Racing Studio" Height="760" Width="960" MinWidth="800" MinHeight="600"
+        Title="Racing Studio" Height="880" Width="960" MinWidth="800" MinHeight="640"
         Background="#16181D" Foreground="#E6E6E6" FontFamily="Segoe UI" FontSize="13"
         Icon="pack://application:,,,/app.ico"
         Loaded="OnLoaded" Closing="OnClosing" Closed="OnClosed">
@@ -17,6 +17,55 @@
                 <TextBlock Text="{Binding Label}" Foreground="#C8CCD4" />
                 <TextBlock Grid.Column="1" Text="{Binding ValueText}" FontFamily="Consolas" />
             </Grid>
+        </DataTemplate>
+
+        <DataTemplate x:Key="FanTemplate" DataType="{x:Type local:FanChannelView}">
+            <Border BorderBrush="#2C313A" BorderThickness="0,0,0,1" Padding="0,8">
+                <StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="{Binding Label}" Foreground="#C8CCD4" />
+                        <TextBlock Grid.Column="1" Text="{Binding StatusText}" FontFamily="Consolas" />
+                    </Grid>
+                    <ComboBox Width="220" HorizontalAlignment="Left" Margin="0,6,0,0" SelectedIndex="{Binding ModeIndex}">
+                        <ComboBoxItem Content="Automático (BIOS)" />
+                        <ComboBoxItem Content="Velocidade fixa" />
+                        <ComboBoxItem Content="Curva por temperatura" />
+                    </ComboBox>
+
+                    <Grid Margin="0,6,0,0" Visibility="{Binding FixedVisibility}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition />
+                            <ColumnDefinition Width="48" />
+                        </Grid.ColumnDefinitions>
+                        <Slider Minimum="{Binding MinPercent}" Maximum="100" Value="{Binding FixedPercent}"
+                                VerticalAlignment="Center" IsSnapToTickEnabled="True" TickFrequency="1" />
+                        <TextBlock Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right" FontFamily="Consolas"
+                                   Text="{Binding FixedPercent, StringFormat={}{0:0} %}" />
+                    </Grid>
+
+                    <StackPanel Margin="0,6,0,0" Visibility="{Binding CurveVisibility}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="segue" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="#9AA0AA" />
+                            <ComboBox Width="220" ItemsSource="{Binding Sources}" DisplayMemberPath="Label"
+                                      SelectedValuePath="Key" SelectedValue="{Binding SourceKey}" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                            <TextBox Width="40" Text="{Binding TempLow, UpdateSourceTrigger=PropertyChanged}" />
+                            <TextBlock Text="°C →" VerticalAlignment="Center" Margin="4,0" Foreground="#9AA0AA" />
+                            <TextBox Width="40" Text="{Binding PercentLow, UpdateSourceTrigger=PropertyChanged}" />
+                            <TextBlock Text="%   até" VerticalAlignment="Center" Margin="4,0" Foreground="#9AA0AA" />
+                            <TextBox Width="40" Text="{Binding TempHigh, UpdateSourceTrigger=PropertyChanged}" />
+                            <TextBlock Text="°C →" VerticalAlignment="Center" Margin="4,0" Foreground="#9AA0AA" />
+                            <TextBox Width="40" Text="{Binding PercentHigh, UpdateSourceTrigger=PropertyChanged}" />
+                            <TextBlock Text="%" VerticalAlignment="Center" Margin="4,0,0,0" Foreground="#9AA0AA" />
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
         </DataTemplate>
     </Window.Resources>
 
@@ -33,19 +82,43 @@
         <TextBlock x:Name="BoardText" Grid.ColumnSpan="2" Margin="16,12,16,0" Foreground="#9AA0AA"
                    TextWrapping="Wrap" Text="Carregando hardware..." />
 
-        <Border Grid.Row="1" Style="{StaticResource Card}">
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
-                <StackPanel>
-                    <TextBlock Text="Monitoramento" Style="{StaticResource Header}" />
-                    <TextBlock Text="TEMPERATURAS" Style="{StaticResource SubHeader}" />
-                    <ItemsControl x:Name="TemperatureList" ItemTemplate="{StaticResource SensorTemplate}" />
-                    <TextBlock Text="FANS" Style="{StaticResource SubHeader}" />
-                    <ItemsControl x:Name="FanList" ItemTemplate="{StaticResource SensorTemplate}" />
-                    <TextBlock Text="TENSÕES" Style="{StaticResource SubHeader}" />
-                    <ItemsControl x:Name="VoltageList" ItemTemplate="{StaticResource SensorTemplate}" />
-                </StackPanel>
-            </ScrollViewer>
-        </Border>
+        <Grid Grid.Row="1">
+            <Grid.RowDefinitions>
+                <RowDefinition />
+                <RowDefinition />
+            </Grid.RowDefinitions>
+
+            <Border Style="{StaticResource Card}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock Text="Monitoramento" Style="{StaticResource Header}" />
+                        <TextBlock Text="TEMPERATURAS" Style="{StaticResource SubHeader}" />
+                        <ItemsControl x:Name="TemperatureList" ItemTemplate="{StaticResource SensorTemplate}" />
+                        <TextBlock Text="FANS" Style="{StaticResource SubHeader}" />
+                        <ItemsControl x:Name="FanList" ItemTemplate="{StaticResource SensorTemplate}" />
+                        <TextBlock Text="TENSÕES" Style="{StaticResource SubHeader}" />
+                        <ItemsControl x:Name="VoltageList" ItemTemplate="{StaticResource SensorTemplate}" />
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+
+            <Border Grid.Row="1" Style="{StaticResource Card}">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="Controle das fans" Style="{StaticResource Header}" />
+                    <StackPanel DockPanel.Dock="Bottom" Margin="0,10,0,0">
+                        <StackPanel Orientation="Horizontal">
+                            <Button x:Name="FanApplyButton" Content="Aplicar nas fans" Click="OnFanApply" IsEnabled="False" />
+                            <Button x:Name="FanBiosButton" Content="Tudo no BIOS" Click="OnFanBios" IsEnabled="False" />
+                        </StackPanel>
+                        <TextBlock x:Name="FanStatus" TextWrapping="Wrap" Margin="0,8,0,0" Foreground="#9AA0AA" FontSize="12"
+                                   Text="Procurando as saídas PWM do Super I/O..." />
+                    </StackPanel>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <ItemsControl x:Name="FanControlList" ItemTemplate="{StaticResource FanTemplate}" />
+                    </ScrollViewer>
+                </DockPanel>
+            </Border>
+        </Grid>
 
         <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource Card}">
             <DockPanel>

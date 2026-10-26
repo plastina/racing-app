@@ -16,6 +16,7 @@ public partial class MainWindow : Window
     private readonly ObservableCollection<SensorRow> _temperatures = new();
     private readonly ObservableCollection<SensorRow> _fans = new();
     private readonly ObservableCollection<SensorRow> _voltages = new();
+    private readonly ObservableCollection<FanChannelView> _fanViews = new();
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(1) };
 
     private HardwareService? _hardware;
@@ -25,19 +26,28 @@ public partial class MainWindow : Window
     private RamLedState? _ramOriginal;
     private SoftwareEffectEngine? _engine;
     private volatile float _cpuTemperature = float.NaN;
+    private string? _cpuTemperatureKey;
+    private IReadOnlyList<SensorReading> _lastReadings = Array.Empty<SensorReading>();
+    private FanController? _fanController;
+    private string _fanSummary = "";
+    private bool _fanFailsafeShown;
     private bool _refreshing;
     private bool _loadingStartupState;
     private readonly TrayIcon _tray;
     private bool _exitRequested;
     private bool _trayHintShown;
+    private UpdateInfo? _pendingUpdate;
 
     public MainWindow()
     {
         InitializeComponent();
+        if (Updater.IsReleaseBuild)
+            Title = $"Racing Studio {Updater.CurrentVersion}";
         _tray = new TrayIcon(ShowFromTray, ExitFromTray);
         TemperatureList.ItemsSource = _temperatures;
         FanList.ItemsSource = _fans;
         VoltageList.ItemsSource = _voltages;
+        FanControlList.ItemsSource = _fanViews;
 
         // Chip effects first, then the app-computed ones.
         BoardEditor.Effects = LedEffect.All.Cast<object>().Concat(SoftEffectOption.All).ToList();
@@ -57,6 +67,8 @@ public partial class MainWindow : Window
         if (WindowState == WindowState.Minimized)
             WindowState = WindowState.Normal;
         Activate();
+        if (_pendingUpdate is not null)
+            Dispatcher.BeginInvoke(OfferPendingUpdate);
     }
 
     private void ExitFromTray()
@@ -94,6 +106,9 @@ public partial class MainWindow : Window
             WindowState = WindowState.Normal;
         }
 
+        // Started now, offered once the hardware is set up so an update never closes the app halfway through it.
+        Task<UpdateInfo?> updateCheck = Updater.CheckAsync();
+
         string iniPath = Path.Combine(AppContext.BaseDirectory, "BoardConfig.ini");
         try
         {
@@ -104,6 +119,8 @@ public partial class MainWindow : Window
             BoardText.Text = $"Não foi possível abrir o acesso ao hardware: {ex.Message}";
             LedStatus.Text = "Placa: LEDs indisponíveis.";
             RamStatus.Text = "Memórias: indisponíveis.";
+            FanStatus.Text = "Controle das fans indisponível.";
+            await ReportUpdateAsync(updateCheck);
             return;
         }
 
@@ -114,6 +131,7 @@ public partial class MainWindow : Window
         _timer.Tick += async (_, _) => await RefreshSensorsAsync();
         _timer.Start();
         await RefreshSensorsAsync();
+        await InitFansAsync();
         await InitBoardLedsAsync();
         await InitRamAsync();
         UpdateSyncUi();
@@ -139,6 +157,68 @@ public partial class MainWindow : Window
             if (StartInTray && (_leds is not null || _ram is not null))
                 await ApplyCurrentAsync();
         }
+
+        await ReportUpdateAsync(updateCheck);
+    }
+
+    /// <summary>
+    /// Offers a newer release: right away if the window is open, otherwise through a tray notification (when started
+    /// with Windows) and again the next time the window is opened.
+    /// </summary>
+    private async Task ReportUpdateAsync(Task<UpdateInfo?> check)
+    {
+        try
+        {
+            _pendingUpdate = await check;
+        }
+        catch (Exception)
+        {
+            // Offline, GitHub rate limit, etc.: just try again on the next start.
+            return;
+        }
+
+        if (_pendingUpdate is null)
+            return;
+
+        if (IsVisible)
+            OfferPendingUpdate();
+        else
+            _tray.ShowMessage($"Versão {_pendingUpdate.Version} disponível. Clique para atualizar.", ShowFromTray);
+    }
+
+    private async void OfferPendingUpdate()
+    {
+        if (_pendingUpdate is not UpdateInfo update)
+            return;
+
+        _pendingUpdate = null;
+        MessageBoxResult answer = MessageBox.Show(this,
+            $"A versão {update.Version} do Racing Studio está disponível (esta é a {Updater.CurrentVersion}).\n\n" +
+            "Atualizar agora? O app fecha e abre de novo sozinho.",
+            "Atualização disponível", MessageBoxButton.YesNo, MessageBoxImage.Information);
+        if (answer != MessageBoxResult.Yes)
+            return;
+
+        string title = Title;
+        Title = $"{title} · baixando a versão {update.Version}…";
+        IsEnabled = false;
+        try
+        {
+            await Updater.InstallAsync(update);
+            Updater.StartUpdated();
+        }
+        catch (Exception ex)
+        {
+            Title = title;
+            IsEnabled = true;
+            MessageBox.Show(this, $"Não foi possível atualizar: {ex.Message}", "Atualização",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        // The new process waits for this one to restore the fans and lighting and exit.
+        _exitRequested = true;
+        Close();
     }
 
     private void OnClosed(object? sender, EventArgs e)
@@ -155,6 +235,8 @@ public partial class MainWindow : Window
             }).Wait(TimeSpan.FromSeconds(5));
         }
 
+        // Closing the Computer also restores them, but say it explicitly: fans must never stay on a manual duty.
+        _fanController?.RestoreBios();
         _hardware?.Dispose();
         _tray.Dispose();
         Application.Current.Shutdown();
@@ -172,9 +254,26 @@ public partial class MainWindow : Window
             SensorReading? cpu = readings.FirstOrDefault(r => r.Type == SensorType.Temperature && r.Label.Contains("Tctl"))
                                  ?? readings.FirstOrDefault(r => r.Type == SensorType.Temperature && r.Label.StartsWith("CPU"));
             _cpuTemperature = cpu?.Value ?? float.NaN;
+            _cpuTemperatureKey = cpu?.Key;
+            _lastReadings = readings;
             Update(_temperatures, readings.Where(r => r.Type == SensorType.Temperature), "0", "°C");
             Update(_fans, readings.Where(r => r.Type == SensorType.Fan), "0", "RPM");
             Update(_voltages, readings.Where(r => r.Type == SensorType.Voltage), "0.000", "V");
+
+            if (_fanController is FanController fans)
+            {
+                float? cpuTemperature = cpu?.Value;
+                try
+                {
+                    await Task.Run(() => fans.Tick(readings, cpuTemperature));
+                }
+                catch (Exception ex)
+                {
+                    FanStatus.Text = $"Erro ao escrever nas fans: {ex.Message}";
+                }
+
+                UpdateFanRows(readings, fans.FailsafeActive);
+            }
         }
         finally
         {
@@ -261,6 +360,116 @@ public partial class MainWindow : Window
         _ramOriginal = state;
         ShowRamState(state);
         RamStatus.Text = $"Memórias: {state.ChipName} · {state.FirstColor} · {RamLedEffect.NameOf(state.Mode)}";
+    }
+
+    private async Task InitFansAsync()
+    {
+        if (_hardware is null || !_hardware.HasHardwareAccess)
+        {
+            FanStatus.Text = "Fans: abra o app como administrador com o PawnIO instalado.";
+            return;
+        }
+
+        IReadOnlyList<FanChannel> channels = await Task.Run(_hardware.FindFanControls);
+        if (channels.Count == 0)
+        {
+            FanStatus.Text = "O LibreHardwareMonitor não oferece controle PWM para o Super I/O desta placa.";
+            return;
+        }
+
+        var sources = _lastReadings.Where(r => r.Type == SensorType.Temperature)
+                                   .Select(r => new TemperatureSource(r.Key, r.Label))
+                                   .ToList();
+        foreach (FanChannel channel in channels)
+            _fanViews.Add(new FanChannelView(channel, sources, _cpuTemperatureKey));
+
+        _fanController = new FanController(_hardware, channels);
+
+        // The BIOS owns the fans again after every restart of the app: resume what was last applied.
+        List<FanSettings> saved = LightingSettings.Load()?.Fans ?? new List<FanSettings>();
+        foreach (FanSettings settings in saved)
+            _fanViews.FirstOrDefault(v => v.Channel.Index == settings.Index)?.SetSettings(settings);
+        _fanController.Configure(saved.Where(s => channels.Any(c => c.Index == s.Index)));
+
+        _fanSummary = DescribeFans(saved);
+        FanStatus.Text = _fanSummary;
+        FanApplyButton.IsEnabled = true;
+        FanBiosButton.IsEnabled = true;
+    }
+
+    private void OnFanApply(object sender, RoutedEventArgs e)
+    {
+        if (_fanController is null)
+            return;
+
+        var settings = new List<FanSettings>();
+        foreach (FanChannelView view in _fanViews)
+        {
+            if (view.ToSettings(out string? error) is not FanSettings s)
+            {
+                FanStatus.Text = error;
+                return;
+            }
+
+            settings.Add(s);
+        }
+
+        // Written by the next sensor tick (within a second).
+        _fanController.Configure(settings);
+        SaveFans(settings);
+    }
+
+    private async void OnFanBios(object sender, RoutedEventArgs e)
+    {
+        if (_fanController is null)
+            return;
+
+        foreach (FanChannelView view in _fanViews)
+            view.ModeIndex = (int)FanMode.Bios;
+        await Task.Run(_fanController.RestoreBios);
+
+        // Keep each row's fixed value and curve so switching back is quick.
+        SaveFans(_fanViews.Select(v => v.ToSettings(out _)).OfType<FanSettings>().ToList());
+    }
+
+    private void SaveFans(List<FanSettings> fans)
+    {
+        _fanSummary = DescribeFans(fans);
+        FanStatus.Text = _fanSummary;
+        LightingSettings settings = LightingSettings.Load() ?? new LightingSettings();
+        settings.Fans = fans;
+        try
+        {
+            settings.Save();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            FanStatus.Text = $"Aplicado, mas não foi possível salvar: {ex.Message}";
+        }
+    }
+
+    private static string DescribeFans(IReadOnlyCollection<FanSettings> fans) =>
+        fans.All(f => f.Mode == FanMode.Bios)
+            ? "Todas as fans no automático do BIOS."
+            : "Fans controladas pelo app enquanto ele estiver aberto (inclusive na bandeja); ao sair, voltam ao BIOS. " +
+              $"Com a CPU acima de {FanController.FailsafeTemperature:0} °C, todas vão a 100 %.";
+
+    private void UpdateFanRows(IReadOnlyList<SensorReading> readings, bool failsafe)
+    {
+        foreach (FanChannelView view in _fanViews)
+        {
+            float? rpm = readings.FirstOrDefault(r => r.Key == view.Channel.FanKey)?.Value;
+            float? duty = readings.FirstOrDefault(r => r.Key == view.Channel.ControlKey)?.Value;
+            view.StatusText = $"{(rpm is float r ? $"{r:0} RPM" : "—")} · {(duty is float d ? $"{d:0} %" : "—")}";
+        }
+
+        if (failsafe != _fanFailsafeShown)
+        {
+            _fanFailsafeShown = failsafe;
+            FanStatus.Text = failsafe
+                ? $"⚠ CPU acima de {FanController.FailsafeTemperature:0} °C: fans controladas pelo app em 100 %."
+                : _fanSummary;
+        }
     }
 
     private async Task InitStartupOptionAsync()

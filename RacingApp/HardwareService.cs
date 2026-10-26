@@ -74,6 +74,47 @@ public sealed class HardwareService : IDisposable
         return readings;
     }
 
+    /// <summary>
+    /// The Super I/O's PWM outputs that LibreHardwareMonitor can drive. With a board profile only the headers
+    /// BIOSTAR labels are listed; control #n drives the header whose tachometer is fan #n.
+    /// </summary>
+    public IReadOnlyList<FanChannel> FindFanControls()
+    {
+        var channels = new List<FanChannel>();
+        lock (Gate)
+        {
+            foreach (IHardware sub in _computer.Hardware.SelectMany(h => h.SubHardware).Where(s => s.HardwareType == HardwareType.SuperIO))
+            {
+                foreach (ISensor sensor in sub.Sensors.Where(s => s.SensorType == SensorType.Control && s.Control is not null))
+                {
+                    string? label = Profile?.Fan(sensor.Index);
+                    if (Profile is not null && label is null)
+                        continue;
+
+                    ISensor? fan = sub.Sensors.FirstOrDefault(s => s.SensorType == SensorType.Fan && s.Index == sensor.Index);
+                    label ??= fan?.Name ?? sensor.Name;
+                    bool isCpu = label.Contains("CPU", StringComparison.OrdinalIgnoreCase);
+                    channels.Add(new FanChannel(sensor.Index, label, sensor.Identifier.ToString(), fan?.Identifier.ToString(),
+                                                isCpu, sensor.Control));
+                }
+            }
+        }
+
+        return channels;
+    }
+
+    /// <summary>Sets a header's duty in percent, or hands it back to the BIOS with null.</summary>
+    public void SetFanDuty(FanChannel channel, float? percent)
+    {
+        lock (Gate)
+        {
+            if (percent is float value)
+                channel.Control.SetSoftware(Math.Clamp(value, channel.Control.MinSoftwareValue, channel.Control.MaxSoftwareValue));
+            else
+                channel.Control.SetDefault();
+        }
+    }
+
     /// <summary>PawnIO's SmbusPIIX4 module maps port 1 to the AMD auxiliary SMBus controller (0x0B20).</summary>
     public SMBusInterface? FindAuxBus() => FindPiix4Bus(1);
 
@@ -104,10 +145,12 @@ public sealed class HardwareService : IDisposable
             SensorType.Temperature => Profile?.Temperature(sensor.Index),
             SensorType.Fan => Profile?.Fan(sensor.Index),
             SensorType.Voltage => Profile?.Voltage(sensor.Index),
+            // Duty of the PWM output that drives fan #n (read by the fan control panel, not listed as a sensor).
+            SensorType.Control => Profile?.Fan(sensor.Index),
             _ => null,
         };
 
-        if (sensor.SensorType is not (SensorType.Temperature or SensorType.Fan or SensorType.Voltage))
+        if (sensor.SensorType is not (SensorType.Temperature or SensorType.Fan or SensorType.Voltage or SensorType.Control))
             return;
 
         // With a board profile, only show the channels BIOSTAR actually wired up.

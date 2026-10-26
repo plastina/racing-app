@@ -24,6 +24,8 @@ public partial class App : Application
             return;
         }
 
+        Updater.FinishPendingUpdate(e.Args);
+
         // One instance only: two apps would fight over the same LED controllers. A second launch just brings
         // the running one to the front.
         _instanceMutex = new Mutex(true, InstanceMutexName, out bool firstInstance);
