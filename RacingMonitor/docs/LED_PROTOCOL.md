@@ -112,8 +112,36 @@ Liga/desliga `0x97` bit 0; modo `0x9B` (mesma tradução do 12V); cor `0x98`/`0x
 ## 5. Memórias RGB ("Memory Sync") — protocolo ENE, separado da placa
 
 Endereços `0x74`–`0x76` (varredura em `0x70`–`0x77`). Registrador selecionado por *word* no
-comando `0x00` (bytes invertidos), byte no comando `0x01`, bloco no comando `0x03`:
-cores em `0x8010` (R,B,G × 5), aplicar em `0x80A0` = `0x01`, modo em `0x8020` (16 bytes). ✅
+comando `0x00` (bytes invertidos), byte no comando `0x01`, bloco no comando `0x03`, leitura no comando
+`0x81`: cores em `0x8010` (R,B,G × 5), aplicar em `0x80A0` = `0x01`, modo em `0x8020` (16 bytes). ✅
+
+O app tem 4 classes de RAM (MEMMCU_SMB padrão 2 = barramento principal), todas com protocolo ENE: ✅
+classe 1 (`0x4d0a30`) usa cores em `0x8010` (mapa "v1"); classes 2–3 usam `0x81xx` (mapa "v2");
+classe 4 usa `0xE0xx`/`0xE3xx`.
+
+Nesta máquina (pentes Asgard VMA47UG ×2): 🔬
+- varredura "receive byte" em `0x70`–`0x77` do SMBus principal (porta 0): só **`0x77`** responde
+  (endereço de fábrica; os dois pentes compartilham o endereço);
+- nome em `0x1000`–`0x100F`: **`AUDA0-E6K5-0101`**.
+- leitura dos registradores (só cursor + comando `0x81`): **mapa v2** — cores do efeito em `0x8160`
+  = `00 FF 00` × 8 (R,B,G → **#0000FF**, os pentes estão azuis); `0x8000`/`0x8010`/`0x8100` zerados;
+  `0x8020` = `00 01 00 00…` (direto 0, **modo 1 = estático**, velocidade 0, direção 0); `0x80A0` = 0;
+  tabela de configuração `0x1C02` = **8 LEDs**.
+- teste de escrita (2026-10-26): cursor + byte no comando `0x01` em `0x8160`–`0x8177` (vermelho) e
+  `0x80A0` = `0x01` → **as duas memórias ficaram vermelhas**; restauração byte a byte igual ao original. 🔬
+- Efeitos da RAM: modo em `0x8021` (com `0x8020` = 0), depois `0x80A0` = 1. Tradução da BIOSTAR
+  (função de cor da RAM, `0x4d0b70`, bloco de 16 bytes a partir de `0x8020`): ✅
+
+  | Efeito da UI | Normal | Com "cor automática" |
+  |---|---|---|
+  | 9 Estático | modo 1 | modo 4 |
+  | 7 Respiração | modo 2 | modo 6 |
+  | 8 Piscar | modo 3 | modo 10 |
+  | 10 Music | direto (`0x8020` = 1) | direto |
+
+  O app também oferece, como experimentais, os modos 5 (arco-íris), 9 (perseguição) e 11 (onda colorida)
+  da tabela usual dos chips ENE, que a BIOSTAR não usa. Todos os 9 modos do app (1, 2, 3, 4, 5, 6, 9, 10, 11)
+  foram aplicados nos pentes e conferidos visualmente. 🔬
 
 ## 6. Detalhes gerais
 

@@ -1,0 +1,16 @@
+Driver do RAMSPDToolkit: PawnIO
+Memória vista pelo LibreHardwareMonitor (leitura de SPD feita por ele ao abrir):
+  Virtual Memory  [Memory Used=20.8, Memory Available=3.4, Memory=86.1]
+  Total Memory  [Memory Used=10.4, Memory Available=5.6, Memory=65]
+  Asgard - VMA47UG-MEC1U2AV5 (#2)  [tCKAVGmin (Minimum Cycle Time)=0.8, tCKAVGmax (Maximum Cycle Time)=1.6, tAA (CAS Latency Time)=13.8, tRCD (RAS to CAS Delay Time)=13.8]
+  Asgard - VMA47UG-MEC1U2AV5 (#3)  [tCKAVGmin (Minimum Cycle Time)=0.8, tCKAVGmax (Maximum Cycle Time)=1.6, tAA (CAS Latency Time)=13.8, tRCD (RAS to CAS Delay Time)=13.8]
+
+Barramentos SMBus detectados: 2
+  [0] PawnIO/Piix4  "PIIX4"  porta 0  PCI 1022:790B
+  [1] PawnIO/Piix4  "PIIX4"  porta 1  PCI 1022:790B
+
+Teste de escrita na RAM (cores do efeito) em 0x77 — PawnIO/Piix4  "PIIX4"  porta 0  PCI 1022:790B
+Cores originais (R,B,G): 00FF0000FF0000FF0000FF0000FF0000FF0000FF0000FF00
+Escrito VERMELHO; lido de volta: FF0000FF0000FF0000FF0000FF0000FF0000FF0000FF0000
+>>> OLHE AS MEMÓRIAS AGORA: devem estar VERMELHAS por 5 segundos...
+Restaurado: 00FF0000FF0000FF0000FF0000FF0000FF0000FF0000FF00 (igual ao original)

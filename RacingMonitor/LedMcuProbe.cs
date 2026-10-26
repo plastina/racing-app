@@ -7,8 +7,9 @@ namespace RacingMonitor;
 
 /// <summary>
 /// Probe of BIOSTAR's "LED MCU" (see docs/LED_PROTOCOL.md).
-/// <c>--leds</c> and <c>--scan</c> only read. <c>--led-write-test</c> is the single mode that writes: it changes
-/// the 12V colour registers temporarily and always restores the original bytes.
+/// <c>--leds</c>, <c>--scan</c> and <c>--scan-ram</c> only read. <c>--ram-id</c> and <c>--ram-read</c> only move
+/// the ENE DRAM read pointer. <c>--led-write-test</c> and <c>--ram-write-test</c> change colour registers
+/// temporarily and always restore the original bytes.
 /// </summary>
 public static class LedMcuProbe
 {
@@ -55,6 +56,15 @@ public static class LedMcuProbe
 
             if (args.Contains("--scan-ram"))
                 return ScanRamRgb(buses);
+
+            if (args.Contains("--ram-id"))
+                return IdentifyRamController(buses);
+
+            if (args.Contains("--ram-read"))
+                return ReadRamRegisters(buses);
+
+            if (args.Contains("--ram-write-test"))
+                return RamWriteTest(buses);
 
             if (args.Contains("--scan"))
                 return ScanAuxBus(buses);
@@ -125,6 +135,195 @@ public static class LedMcuProbe
     /// Lists which DRAM RGB controller addresses ACK on the primary SMBus. Only 0x70–0x77 (the ENE DRAM range
     /// RCGTII probes) are touched, with SMBus "receive byte" only: the SPD EEPROMs at 0x50–0x57 are never addressed.
     /// </summary>
+    /// <summary>
+    /// Reads the 16-byte device name of the ENE DRAM RGB controller at 0x77 (registers 0x1000–0x100F).
+    /// ENE registers are reached by writing the byte-swapped register address to command 0x00 (a read pointer;
+    /// no setting changes) and reading command 0x81. No other write is issued.
+    /// </summary>
+    private static int IdentifyRamController(IReadOnlyList<SMBusInterface> buses)
+    {
+        const byte address = 0x77;
+        SMBusInterface? main = FindPiix4Bus(buses, 0);
+        if (main is null)
+        {
+            Console.WriteLine("\nIdentificação cancelada: não encontrei exatamente um barramento PIIX4 na porta 0 (principal 0x0B00).");
+            return 2;
+        }
+
+        Console.WriteLine($"\nIdentificando o controlador em 0x{address:X2} no barramento: {Describe(main)}");
+        if (main.i2c_smbus_read_byte(address) < 0)
+        {
+            Console.WriteLine($"0x{address:X2} não respondeu. Nada foi escrito.");
+            return 3;
+        }
+
+        byte[]? name = ReadEne(main, address, 0x1000, 16);
+        if (name is null)
+            return 4;
+
+        Console.WriteLine($"Bytes 0x1000–0x100F: {Convert.ToHexString(name)}");
+        Console.WriteLine($"Nome do chip: \"{EneName(name)}\"");
+        return 0;
+    }
+
+    /// <summary>
+    /// Read-only dump of the ENE DRAM registers needed to choose between the v1 (0x8010) and v2 (0x8100/0x8160)
+    /// colour maps: config table, mode block and both colour areas. Only read-pointer writes are issued.
+    /// </summary>
+    private static int ReadRamRegisters(IReadOnlyList<SMBusInterface> buses)
+    {
+        const byte address = 0x77;
+        SMBusInterface? main = FindPiix4Bus(buses, 0);
+        if (main is null || main.i2c_smbus_read_byte(address) < 0)
+        {
+            Console.WriteLine("\nLeitura cancelada: barramento principal ou controlador 0x77 indisponível. Nada foi escrito.");
+            return 2;
+        }
+
+        byte[]? name = ReadEne(main, address, 0x1000, 16);
+        if (name is null || EneName(name) != "AUDA0-E6K5-0101")
+        {
+            Console.WriteLine($"\nLeitura cancelada: chip inesperado (\"{(name is null ? "?" : EneName(name))}\").");
+            return 3;
+        }
+
+        Console.WriteLine($"\nChip AUDA0-E6K5-0101 em 0x{address:X2} — {Describe(main)}");
+        (ushort Register, int Length, string Meaning)[] areas =
+        {
+            (0x1C00, 64, "tabela de configuração"),
+            (0x8020, 16, "bloco de modo (direto, modo, velocidade, direção...)"),
+            (0x80A0, 1, "aplicar"),
+            (0x8000, 15, "v1: cores diretas (R,B,G x5)"),
+            (0x8010, 15, "v1: cores do efeito (R,B,G x5)"),
+            (0x8100, 24, "v2: cores diretas (R,B,G x8)"),
+            (0x8160, 24, "v2: cores do efeito (R,B,G x8)"),
+        };
+
+        foreach (var (register, length, meaning) in areas)
+        {
+            byte[]? data = ReadEne(main, address, register, length);
+            if (data is null)
+                return 4;
+
+            Console.WriteLine($"\n0x{register:X4} — {meaning}");
+            for (int i = 0; i < data.Length; i += 16)
+                Console.WriteLine($"  +{i:X2}: {string.Join(" ", data.Skip(i).Take(16).Select(v => v.ToString("X2")))}");
+            if (meaning.Contains("R,B,G"))
+                Console.WriteLine("  como #RRGGBB: " + string.Join(" ", Enumerable.Range(0, data.Length / 3)
+                    .Select(k => $"#{data[k * 3]:X2}{data[k * 3 + 2]:X2}{data[k * 3 + 1]:X2}")));
+        }
+
+        return 0;
+    }
+
+    /// <summary>
+    /// First RAM write test: turns the 8 effect colours (0x8160–0x8177, R,B,G order) red for a few seconds, then
+    /// restores the exact original bytes. Each write is the ENE register pointer (command 0x00) plus one byte on
+    /// command 0x01, followed by apply (0x80A0 = 0x01). Nothing outside those registers is written.
+    /// </summary>
+    private static int RamWriteTest(IReadOnlyList<SMBusInterface> buses)
+    {
+        const byte address = 0x77;
+        const ushort effectColors = 0x8160, applyRegister = 0x80A0;
+        const int ledCount = 8, holdMs = 5000;
+
+        SMBusInterface? main = FindPiix4Bus(buses, 0);
+        if (main is null || main.i2c_smbus_read_byte(address) < 0)
+        {
+            Console.WriteLine("\nTeste cancelado: barramento principal ou controlador 0x77 indisponível. Nada foi escrito.");
+            return 2;
+        }
+
+        byte[]? name = ReadEne(main, address, 0x1000, 16);
+        byte[]? modeBlock = ReadEne(main, address, 0x8020, 2);
+        byte[]? original = ReadEne(main, address, effectColors, ledCount * 3);
+        if (name is null || modeBlock is null || original is null)
+            return 4;
+
+        if (EneName(name) != "AUDA0-E6K5-0101" || modeBlock[0] != 0x00 || modeBlock[1] != 0x01)
+        {
+            Console.WriteLine($"\nTeste cancelado: estado inesperado (chip \"{EneName(name)}\", 0x8020={modeBlock[0]:X2}, 0x8021={modeBlock[1]:X2}). Nada foi escrito.");
+            return 3;
+        }
+
+        Console.WriteLine($"\nTeste de escrita na RAM (cores do efeito) em 0x{address:X2} — {Describe(main)}");
+        Console.WriteLine($"Cores originais (R,B,G): {Convert.ToHexString(original)}");
+
+        // Ctrl+C must not skip the restore below.
+        ConsoleCancelEventHandler keepRunning = (_, e) => e.Cancel = true;
+        Console.CancelKeyPress += keepRunning;
+        try
+        {
+            byte[] red = Enumerable.Range(0, ledCount).SelectMany(_ => new byte[] { 0xFF, 0x00, 0x00 }).ToArray();
+            if (!WriteEne(main, address, effectColors, red) || !WriteEne(main, address, applyRegister, new byte[] { 0x01 }))
+            {
+                Console.WriteLine("Escrita falhou; restaurando.");
+                return 4;
+            }
+
+            byte[]? after = ReadEne(main, address, effectColors, ledCount * 3);
+            Console.WriteLine($"Escrito VERMELHO; lido de volta: {(after is null ? "?" : Convert.ToHexString(after))}");
+            Console.WriteLine($">>> OLHE AS MEMÓRIAS AGORA: devem estar VERMELHAS por {holdMs / 1000} segundos...");
+            Thread.Sleep(holdMs);
+            return 0;
+        }
+        finally
+        {
+            bool restored = WriteEne(main, address, effectColors, original)
+                            && WriteEne(main, address, applyRegister, new byte[] { 0x01 });
+            byte[]? check = ReadEne(main, address, effectColors, ledCount * 3);
+            restored &= check is not null && check.SequenceEqual(original);
+            Console.WriteLine($"Restaurado: {(check is null ? "?" : Convert.ToHexString(check))} " +
+                              (restored ? "(igual ao original)" : "(ATENÇÃO: diferente do original — rode o teste de novo ou reinicie o PC)"));
+            Console.CancelKeyPress -= keepRunning;
+        }
+    }
+
+    /// <summary>Writes ENE registers one byte at a time (register pointer on command 0x00, value on command 0x01).</summary>
+    private static bool WriteEne(SMBusInterface bus, byte address, ushort register, byte[] values)
+    {
+        for (int i = 0; i < values.Length; i++)
+        {
+            ushort reg = (ushort)(register + i);
+            ushort swapped = (ushort)(((reg << 8) & 0xFF00) | ((reg >> 8) & 0x00FF));
+            if (bus.i2c_smbus_write_word_data(address, 0x00, swapped) < 0
+                || bus.i2c_smbus_write_byte_data(address, 0x01, values[i]) < 0)
+                return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>Reads <paramref name="length"/> ENE registers starting at <paramref name="register"/> (read pointer + command 0x81 per byte).</summary>
+    private static byte[]? ReadEne(SMBusInterface bus, byte address, ushort register, int length)
+    {
+        var data = new byte[length];
+        for (int i = 0; i < length; i++)
+        {
+            ushort reg = (ushort)(register + i);
+            ushort swapped = (ushort)(((reg << 8) & 0xFF00) | ((reg >> 8) & 0x00FF));
+            if (bus.i2c_smbus_write_word_data(address, 0x00, swapped) < 0)
+            {
+                Console.WriteLine($"Falha ao posicionar o cursor em 0x{reg:X4}. Leitura interrompida.");
+                return null;
+            }
+
+            int value = bus.i2c_smbus_read_byte_data(address, 0x81);
+            if (value < 0)
+            {
+                Console.WriteLine($"Falha ao ler 0x{reg:X4}. Leitura interrompida.");
+                return null;
+            }
+
+            data[i] = (byte)value;
+        }
+
+        return data;
+    }
+
+    private static string EneName(byte[] name) =>
+        new string(name.TakeWhile(c => c != 0).Select(c => c is >= 0x20 and < 0x7F ? (char)c : '.').ToArray());
+
     private static int ScanRamRgb(IReadOnlyList<SMBusInterface> buses)
     {
         SMBusInterface? main = FindPiix4Bus(buses, 0);

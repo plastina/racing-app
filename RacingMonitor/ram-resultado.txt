@@ -1,0 +1,14 @@
+Driver do RAMSPDToolkit: PawnIO
+Memória vista pelo LibreHardwareMonitor (leitura de SPD feita por ele ao abrir):
+  Virtual Memory  [Memory Used=21.1, Memory Available=3.1, Memory=87.2]
+  Total Memory  [Memory Used=10.5, Memory Available=5.5, Memory=65.8]
+  Asgard - VMA47UG-MEC1U2AV5 (#2)  [tCKAVGmin (Minimum Cycle Time)=0.8, tCKAVGmax (Maximum Cycle Time)=1.6, tAA (CAS Latency Time)=13.8, tRCD (RAS to CAS Delay Time)=13.8]
+  Asgard - VMA47UG-MEC1U2AV5 (#3)  [tCKAVGmin (Minimum Cycle Time)=0.8, tCKAVGmax (Maximum Cycle Time)=1.6, tAA (CAS Latency Time)=13.8, tRCD (RAS to CAS Delay Time)=13.8]
+
+Barramentos SMBus detectados: 2
+  [0] PawnIO/Piix4  "PIIX4"  porta 0  PCI 1022:790B
+  [1] PawnIO/Piix4  "PIIX4"  porta 1  PCI 1022:790B
+
+Varrendo (só leitura, receive byte) 0x70–0x77 em: PawnIO/Piix4  "PIIX4"  porta 0  PCI 1022:790B
+Responderam: 1
+  0x77 (8 bits 0xEE) respondeu, byte = 0xFF

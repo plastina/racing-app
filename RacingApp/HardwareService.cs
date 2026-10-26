@@ -75,14 +75,19 @@ public sealed class HardwareService : IDisposable
     }
 
     /// <summary>PawnIO's SmbusPIIX4 module maps port 1 to the AMD auxiliary SMBus controller (0x0B20).</summary>
-    public SMBusInterface? FindAuxBus()
+    public SMBusInterface? FindAuxBus() => FindPiix4Bus(1);
+
+    /// <summary>Port 0 is the primary SMBus (0x0B00), where the DIMMs (SPD and RGB controllers) live.</summary>
+    public SMBusInterface? FindMainBus() => FindPiix4Bus(0);
+
+    private SMBusInterface? FindPiix4Bus(int port)
     {
         lock (Gate)
         {
-            var aux = SMBusManager.RegisteredSMBuses
-                .Where(b => b is SMBusPawnIO { PawnIOSMBusIdentifier: PawnIOSMBusIdentifier.Piix4 } && b.PortID == 1)
+            var matches = SMBusManager.RegisteredSMBuses
+                .Where(b => b is SMBusPawnIO { PawnIOSMBusIdentifier: PawnIOSMBusIdentifier.Piix4 } && b.PortID == port)
                 .ToList();
-            return aux.Count == 1 ? aux[0] : null;
+            return matches.Count == 1 ? matches[0] : null;
         }
     }
 
