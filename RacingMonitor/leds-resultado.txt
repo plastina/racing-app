@@ -1,0 +1,28 @@
+Driver do RAMSPDToolkit: PawnIO
+Memória vista pelo LibreHardwareMonitor (leitura de SPD feita por ele ao abrir):
+  Virtual Memory  [Memory Used=29.1, Memory Available=3.3, Memory=89.8]
+  Total Memory  [Memory Used=13.9, Memory Available=2.1, Memory=87.1]
+  Asgard - VMA47UG-MEC1U2AV5 (#2)  [tCKAVGmin (Minimum Cycle Time)=0.8, tCKAVGmax (Maximum Cycle Time)=1.6, tAA (CAS Latency Time)=13.8, tRCD (RAS to CAS Delay Time)=13.8]
+  Asgard - VMA47UG-MEC1U2AV5 (#3)  [tCKAVGmin (Minimum Cycle Time)=0.8, tCKAVGmax (Maximum Cycle Time)=1.6, tAA (CAS Latency Time)=13.8, tRCD (RAS to CAS Delay Time)=13.8]
+
+Barramentos SMBus detectados: 2
+  [0] PawnIO/Piix4  "PIIX4"  porta 0  PCI 1022:790B
+  [1] PawnIO/Piix4  "PIIX4"  porta 1  PCI 1022:790B
+
+Lendo LED MCU em 0x30 no barramento: PawnIO/Piix4  "PIIX4"  porta 1  PCI 1022:790B (escolhido com --led-bus)
+
+  0x97  0x07  00000111       12V: liga/desliga (bit1)
+  0x9C  0x66  01100110       12V: R
+  0x9D  0x49  01001001       12V: G
+  0x9E  0xFF  11111111       12V: B
+  0x9F  0x81  10000001       12V: modo (0x80 + código, bit4 preservado)
+  0xA4  0x00  00000000       5V: aplicar (app grava 0x01)
+  0xA5  0x80  10000000       5V: liga/desliga (bit7)
+  0xA6  0x89  10001001       5V: modo (0x80 + modo)
+  0xA7  0x66  01100110       5V: R
+  0xA8  0x49  01001001       5V: G
+  0xA9  0xFF  11111111       5V: B
+
+Interpretação (segundo docs/LED_PROTOCOL.md, ainda não confirmada):
+  12V: ligado  cor #6649FF  modo 0x01 (bit7 ativo)
+  5V:  ligado  cor #6649FF  modo 0x09 (bit7 ativo)
