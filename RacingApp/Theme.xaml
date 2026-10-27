@@ -1,0 +1,553 @@
+<!--
+    "Serigrafia": the board's own vocabulary. Matte solder mask, white silkscreen, gold (ENIG) pads for everything
+    that can be touched; the only saturated colour on screen is the user's LED colour, in the lighting preview.
+-->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Color x:Key="MaskColor">#1B1C1F</Color>
+    <Color x:Key="PadColor">#CFA448</Color>
+
+    <SolidColorBrush x:Key="Mask" Color="{StaticResource MaskColor}" />
+    <SolidColorBrush x:Key="MaskDeep" Color="#141518" />
+    <SolidColorBrush x:Key="Zone" Color="#222428" />
+    <SolidColorBrush x:Key="Raised" Color="#2A2C31" />
+    <SolidColorBrush x:Key="Trace" Color="#34363C" />
+    <SolidColorBrush x:Key="Outline" Color="#44474E" />
+    <SolidColorBrush x:Key="Silk" Color="#E9EAE4" />
+    <SolidColorBrush x:Key="SilkDim" Color="#9A9DA4" />
+    <SolidColorBrush x:Key="Pad" Color="{StaticResource PadColor}" />
+    <SolidColorBrush x:Key="PadHot" Color="#E2B85A" />
+    <SolidColorBrush x:Key="PadText" Color="#1B1C1F" />
+    <SolidColorBrush x:Key="Alert" Color="#F0643C" />
+
+    <FontFamily x:Key="Display">Bahnschrift</FontFamily>
+    <FontFamily x:Key="Body">Segoe UI Variable Text, Segoe UI</FontFamily>
+
+    <!-- Keyboard focus: a gold ring just outside the control. -->
+    <Style x:Key="PadFocus">
+        <Setter Property="Control.Template">
+            <Setter.Value>
+                <ControlTemplate>
+                    <Rectangle Margin="-3" RadiusX="4" RadiusY="4" Stroke="{StaticResource Pad}" StrokeThickness="1.5" />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Text roles -->
+    <Style x:Key="AppTitle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource Display}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontSize" Value="21" />
+        <Setter Property="Foreground" Value="{StaticResource Silk}" />
+    </Style>
+    <Style x:Key="GroupTitle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource Display}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Foreground" Value="{StaticResource SilkDim}" />
+        <Setter Property="Margin" Value="0,18,0,6" />
+    </Style>
+    <Style x:Key="FieldLabel" TargetType="TextBlock" BasedOn="{StaticResource GroupTitle}">
+        <Setter Property="Margin" Value="0,16,0,6" />
+    </Style>
+    <Style x:Key="Designator" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource Display}" />
+        <Setter Property="FontStretch" Value="SemiCondensed" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontSize" Value="15" />
+        <Setter Property="Foreground" Value="{StaticResource Silk}" />
+    </Style>
+    <Style x:Key="Reading" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource Display}" />
+        <Setter Property="FontStretch" Value="SemiCondensed" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="Typography.NumeralAlignment" Value="Tabular" />
+        <Setter Property="Foreground" Value="{StaticResource Silk}" />
+    </Style>
+    <Style x:Key="Hint" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="LineHeight" Value="18" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="Foreground" Value="{StaticResource SilkDim}" />
+    </Style>
+    <Style x:Key="Inline" TargetType="TextBlock">
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Margin" Value="6,0" />
+        <Setter Property="Foreground" Value="{StaticResource SilkDim}" />
+    </Style>
+
+    <!-- A component footprint: silkscreen outline around one group of controls. -->
+    <Style x:Key="Footprint" TargetType="Border">
+        <Setter Property="BorderBrush" Value="{StaticResource Outline}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="3" />
+        <Setter Property="Padding" Value="16,14" />
+    </Style>
+
+    <!-- Buttons -->
+    <Style TargetType="Button">
+        <Setter Property="FocusVisualStyle" Value="{StaticResource PadFocus}" />
+        <Setter Property="Background" Value="{StaticResource Raised}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Outline}" />
+        <Setter Property="Foreground" Value="{StaticResource Silk}" />
+        <Setter Property="FontFamily" Value="{StaticResource Display}" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="Padding" Value="16,8" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Body" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="1" CornerRadius="3" Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Body" Property="BorderBrush" Value="{StaticResource Pad}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Body" Property="Opacity" Value="0.8" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Body" Property="Opacity" Value="0.38" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Background" Value="{StaticResource Pad}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Pad}" />
+        <Setter Property="Foreground" Value="{StaticResource PadText}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{StaticResource PadHot}" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- Text input -->
+    <Style TargetType="TextBox">
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Background" Value="{StaticResource Raised}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Outline}" />
+        <Setter Property="Foreground" Value="{StaticResource Silk}" />
+        <Setter Property="CaretBrush" Value="{StaticResource Silk}" />
+        <Setter Property="SelectionBrush" Value="{StaticResource Pad}" />
+        <Setter Property="FontFamily" Value="{StaticResource Display}" />
+        <Setter Property="FontStretch" Value="SemiCondensed" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="Typography.NumeralAlignment" Value="Tabular" />
+        <Setter Property="Padding" Value="5,4" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <Border x:Name="Body" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="1" CornerRadius="3" SnapsToDevicePixels="True">
+                        <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" Focusable="False"
+                                      HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                            <Setter TargetName="Body" Property="BorderBrush" Value="{StaticResource Pad}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Body" Property="Opacity" Value="0.38" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Combo box -->
+    <ControlTemplate x:Key="ComboToggle" TargetType="ToggleButton">
+        <Border x:Name="Body" Background="{StaticResource Raised}" BorderBrush="{StaticResource Outline}"
+                BorderThickness="1" CornerRadius="3" SnapsToDevicePixels="True">
+            <Path x:Name="Chevron" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,12,0"
+                  Data="M0,0 L4.5,4.5 L9,0" Stroke="{StaticResource SilkDim}" StrokeThickness="1.5" />
+        </Border>
+        <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Body" Property="BorderBrush" Value="{StaticResource Pad}" />
+            </Trigger>
+            <Trigger Property="IsChecked" Value="True">
+                <Setter TargetName="Body" Property="BorderBrush" Value="{StaticResource Pad}" />
+                <Setter TargetName="Chevron" Property="Stroke" Value="{StaticResource Pad}" />
+            </Trigger>
+        </ControlTemplate.Triggers>
+    </ControlTemplate>
+    <Style TargetType="ComboBox">
+        <Setter Property="FocusVisualStyle" Value="{StaticResource PadFocus}" />
+        <Setter Property="Foreground" Value="{StaticResource Silk}" />
+        <Setter Property="MinHeight" Value="32" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ComboBox">
+                    <Grid x:Name="Root">
+                        <ToggleButton Template="{StaticResource ComboToggle}" Focusable="False" ClickMode="Press"
+                                      IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}" />
+                        <ContentPresenter Margin="10,0,30,0" VerticalAlignment="Center" IsHitTestVisible="False"
+                                          Content="{TemplateBinding SelectionBoxItem}"
+                                          ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                          ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                                          ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}" />
+                        <Popup x:Name="PART_Popup" Placement="Bottom" AllowsTransparency="True" Focusable="False"
+                               PopupAnimation="None" VerticalOffset="4"
+                               IsOpen="{TemplateBinding IsDropDownOpen}">
+                            <Border Background="{StaticResource Zone}" BorderBrush="{StaticResource Outline}" BorderThickness="1"
+                                    CornerRadius="3" Padding="0,4" SnapsToDevicePixels="True"
+                                    MinWidth="{Binding ActualWidth, ElementName=Root}" MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                                <ScrollViewer>
+                                    <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained" />
+                                </ScrollViewer>
+                            </Border>
+                        </Popup>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Root" Property="Opacity" Value="0.38" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <Style TargetType="ComboBoxItem">
+        <Setter Property="Foreground" Value="{StaticResource Silk}" />
+        <Setter Property="Padding" Value="10,6" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ComboBoxItem">
+                    <Border x:Name="Body" Background="Transparent" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsHighlighted" Value="True">
+                            <Setter TargetName="Body" Property="Background" Value="{StaticResource Trace}" />
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter Property="Foreground" Value="{StaticResource Pad}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Slider: a trace with a gold SMD pad as the thumb. Foreground colours the filled part. -->
+    <Style x:Key="TraceRepeat" TargetType="RepeatButton">
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="IsTabStop" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RepeatButton">
+                    <Grid Background="Transparent">
+                        <Border Height="3" CornerRadius="1.5" Background="{TemplateBinding Background}" />
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <Style TargetType="Slider">
+        <Setter Property="FocusVisualStyle" Value="{StaticResource PadFocus}" />
+        <Setter Property="Foreground" Value="{StaticResource Pad}" />
+        <Setter Property="IsMoveToPointEnabled" Value="True" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Slider">
+                    <Grid x:Name="Root" Height="22" Background="Transparent">
+                        <Track x:Name="PART_Track">
+                            <Track.DecreaseRepeatButton>
+                                <RepeatButton Style="{StaticResource TraceRepeat}" Command="Slider.DecreaseLarge"
+                                              Background="{TemplateBinding Foreground}" />
+                            </Track.DecreaseRepeatButton>
+                            <Track.IncreaseRepeatButton>
+                                <RepeatButton Style="{StaticResource TraceRepeat}" Command="Slider.IncreaseLarge"
+                                              Background="{StaticResource Trace}" />
+                            </Track.IncreaseRepeatButton>
+                            <Track.Thumb>
+                                <Thumb>
+                                    <Thumb.Template>
+                                        <ControlTemplate TargetType="Thumb">
+                                            <Border x:Name="PadShape" Width="10" Height="18" CornerRadius="2"
+                                                    Background="{StaticResource Pad}" BorderBrush="{StaticResource Mask}" BorderThickness="1" />
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="PadShape" Property="Background" Value="{StaticResource PadHot}" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                            </Track.Thumb>
+                        </Track>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Root" Property="Opacity" Value="0.38" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Check box drawn as a switch. -->
+    <Style TargetType="CheckBox">
+        <Setter Property="FocusVisualStyle" Value="{StaticResource PadFocus}" />
+        <Setter Property="Foreground" Value="{StaticResource Silk}" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="CheckBox">
+                    <Grid x:Name="Root" Background="Transparent">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition />
+                        </Grid.ColumnDefinitions>
+                        <Border x:Name="Rail" Width="34" Height="18" CornerRadius="9" VerticalAlignment="Center"
+                                Background="{StaticResource Trace}" BorderBrush="{StaticResource Outline}" BorderThickness="1">
+                            <Ellipse x:Name="Knob" Width="12" Height="12" Margin="2,0" HorizontalAlignment="Left"
+                                     Fill="{StaticResource SilkDim}" />
+                        </Border>
+                        <ContentPresenter Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Rail" Property="Background" Value="{StaticResource Pad}" />
+                            <Setter TargetName="Rail" Property="BorderBrush" Value="{StaticResource Pad}" />
+                            <Setter TargetName="Knob" Property="Fill" Value="{StaticResource PadText}" />
+                            <Setter TargetName="Knob" Property="HorizontalAlignment" Value="Right" />
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Rail" Property="BorderBrush" Value="{StaticResource Pad}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Root" Property="Opacity" Value="0.38" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Thin scroll bars -->
+    <Style TargetType="ScrollBar">
+        <Setter Property="Width" Value="8" />
+        <Setter Property="MinWidth" Value="8" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ScrollBar">
+                    <Track x:Name="PART_Track" IsDirectionReversed="True">
+                        <Track.Thumb>
+                            <Thumb>
+                                <Thumb.Template>
+                                    <ControlTemplate TargetType="Thumb">
+                                        <Border x:Name="Grip" Width="4" CornerRadius="2" Background="{StaticResource Outline}" />
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Grip" Property="Background" Value="{StaticResource SilkDim}" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Thumb.Template>
+                            </Thumb>
+                        </Track.Thumb>
+                    </Track>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="Orientation" Value="Horizontal">
+                <Setter Property="Width" Value="Auto" />
+                <Setter Property="MinWidth" Value="0" />
+                <Setter Property="Height" Value="8" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ScrollBar">
+                            <Track x:Name="PART_Track">
+                                <Track.Thumb>
+                                    <Thumb>
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Border Height="4" CornerRadius="2" Background="{StaticResource Outline}" />
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                            </Track>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- Main navigation: large silkscreen words, the current page underlined in silk. -->
+    <Style x:Key="NavTabs" TargetType="TabControl">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TabControl">
+                    <DockPanel>
+                        <Border DockPanel.Dock="Top" BorderBrush="{StaticResource Trace}" BorderThickness="0,0,0,1" Margin="0,0,0,20">
+                            <TabPanel IsItemsHost="True" />
+                        </Border>
+                        <ContentPresenter ContentSource="SelectedContent" />
+                    </DockPanel>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="ItemContainerStyle">
+            <Setter.Value>
+                <Style TargetType="TabItem">
+                    <Setter Property="FocusVisualStyle" Value="{StaticResource PadFocus}" />
+                    <Setter Property="Cursor" Value="Hand" />
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="TabItem">
+                                <Grid Margin="0,0,28,-1" Background="Transparent">
+                                    <!-- Font set here, not on the TabItem, so it does not leak into the page. -->
+                                    <ContentPresenter x:Name="Header" ContentSource="Header" Margin="0,0,0,10"
+                                                      TextElement.FontFamily="{StaticResource Display}" TextElement.FontSize="18"
+                                                      TextElement.Foreground="{StaticResource SilkDim}" />
+                                    <Border x:Name="Underline" Height="2" VerticalAlignment="Bottom" Background="Transparent" />
+                                </Grid>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="Header" Property="TextElement.Foreground" Value="{StaticResource Silk}" />
+                                    </Trigger>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter TargetName="Header" Property="TextElement.Foreground" Value="{StaticResource Silk}" />
+                                        <Setter TargetName="Underline" Property="Background" Value="{StaticResource Silk}" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Device picker inside a page: a small outlined segment row. -->
+    <Style x:Key="SegmentTabs" TargetType="TabControl">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TabControl">
+                    <DockPanel>
+                        <Border DockPanel.Dock="Top" HorizontalAlignment="Left" BorderBrush="{StaticResource Outline}"
+                                BorderThickness="1" CornerRadius="3" Padding="2" Margin="0,0,0,16">
+                            <TabPanel IsItemsHost="True" />
+                        </Border>
+                        <ContentPresenter ContentSource="SelectedContent" />
+                    </DockPanel>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="ItemContainerStyle">
+            <Setter.Value>
+                <Style TargetType="TabItem">
+                    <Setter Property="FocusVisualStyle" Value="{StaticResource PadFocus}" />
+                    <Setter Property="Cursor" Value="Hand" />
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="TabItem">
+                                <Border x:Name="Body" CornerRadius="2" Padding="14,6" Background="Transparent">
+                                    <ContentPresenter x:Name="Header" ContentSource="Header"
+                                                      TextElement.FontFamily="{StaticResource Display}" TextElement.FontSize="14"
+                                                      TextElement.Foreground="{StaticResource SilkDim}" />
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="Header" Property="TextElement.Foreground" Value="{StaticResource Silk}" />
+                                    </Trigger>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter TargetName="Header" Property="TextElement.Foreground" Value="{StaticResource Silk}" />
+                                        <Setter TargetName="Body" Property="Background" Value="{StaticResource Trace}" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- A setting with a few exclusive values (fan mode): gold marks the active one. -->
+    <Style x:Key="Segmented" TargetType="ListBox">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="HorizontalAlignment" Value="Left" />
+        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBox">
+                    <Border x:Name="Root" BorderBrush="{StaticResource Outline}" BorderThickness="1" CornerRadius="3" Padding="2">
+                        <ItemsPresenter />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Root" Property="Opacity" Value="0.38" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="ItemsPanel">
+            <Setter.Value>
+                <ItemsPanelTemplate>
+                    <StackPanel Orientation="Horizontal" />
+                </ItemsPanelTemplate>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="ItemContainerStyle">
+            <Setter.Value>
+                <Style TargetType="ListBoxItem">
+                    <Setter Property="FocusVisualStyle" Value="{StaticResource PadFocus}" />
+                    <Setter Property="Foreground" Value="{StaticResource SilkDim}" />
+                    <Setter Property="FontFamily" Value="{StaticResource Display}" />
+                    <Setter Property="FontSize" Value="13" />
+                    <Setter Property="Cursor" Value="Hand" />
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="ListBoxItem">
+                                <Border x:Name="Body" CornerRadius="2" Padding="14,5" Background="Transparent">
+                                    <ContentPresenter />
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Foreground" Value="{StaticResource Silk}" />
+                                    </Trigger>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter Property="Foreground" Value="{StaticResource PadText}" />
+                                        <Setter Property="FontWeight" Value="SemiBold" />
+                                        <Setter TargetName="Body" Property="Background" Value="{StaticResource Pad}" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="ToolTip">
+        <Setter Property="Background" Value="{StaticResource Raised}" />
+        <Setter Property="Foreground" Value="{StaticResource Silk}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Outline}" />
+        <Setter Property="FontFamily" Value="{StaticResource Display}" />
+    </Style>
+</ResourceDictionary>

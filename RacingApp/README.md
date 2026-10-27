@@ -93,6 +93,7 @@ Para gerar o mesmo exe único do release: `dotnet publish RacingApp/RacingApp.cs
 | `FanControl.cs` | Modos e curva de cada fan (`FanSettings`) e o `FanController`, que calcula e escreve o duty a cada leitura de sensores. |
 | `FanChannelView.cs` | Uma linha do painel de fans: edição, validação e RPM/duty ao vivo. |
 | `MainWindow.xaml(.cs)` | Interface; leituras e escritas rodam fora da thread da UI. |
+| `Theme.xaml` | Visual do app: cores (máscara, serigrafia, pads dourados), fontes (Bahnschrift + Segoe UI Variable) e templates de todos os controles. |
 | `Updater.cs` | Consulta o último release no GitHub, baixa/verifica o novo exe e o troca pelo atual. |
 
 Todo acesso ao hardware passa por `HardwareService.Gate`, para que atualizações de sensores e escritas nos

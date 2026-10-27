@@ -2,7 +2,9 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Interop;
 using System.Windows.Threading;
 using LibreHardwareMonitor.Hardware;
 
@@ -55,6 +57,24 @@ public partial class MainWindow : Window
         RamEditor.Effects = RamLedEffect.All.Cast<object>().Concat(SoftEffectOption.All).ToList();
         UpdateSyncUi();
     }
+
+    /// <summary>Dark title bar in the solder-mask colour, so the Windows frame matches the window (ignored before Windows 11).</summary>
+    protected override void OnSourceInitialized(EventArgs e)
+    {
+        base.OnSourceInitialized(e);
+        IntPtr hwnd = new WindowInteropHelper(this).Handle;
+        int dark = 1;
+        DwmSetWindowAttribute(hwnd, DwmUseImmersiveDarkMode, ref dark, sizeof(int));
+        var mask = (System.Windows.Media.Color)FindResource("MaskColor");
+        int caption = mask.R | (mask.G << 8) | (mask.B << 16);
+        DwmSetWindowAttribute(hwnd, DwmCaptionColor, ref caption, sizeof(int));
+    }
+
+    private const int DwmUseImmersiveDarkMode = 20;
+    private const int DwmCaptionColor = 35;
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
 
     /// <summary>Started by the logon task: stay in the notification area and resume the last configuration.</summary>
     public bool StartInTray { get; init; }
@@ -466,6 +486,7 @@ public partial class MainWindow : Window
         if (failsafe != _fanFailsafeShown)
         {
             _fanFailsafeShown = failsafe;
+            FanStatus.Foreground = (System.Windows.Media.Brush)FindResource(failsafe ? "Alert" : "SilkDim");
             FanStatus.Text = failsafe
                 ? $"⚠ CPU acima de {FanController.FailsafeTemperature:0} °C: fans controladas pelo app em 100 %."
                 : _fanSummary;

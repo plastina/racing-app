@@ -2,165 +2,214 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:RacingApp"
-        Title="Racing Studio" Height="880" Width="960" MinWidth="800" MinHeight="640"
-        Background="#16181D" Foreground="#E6E6E6" FontFamily="Segoe UI" FontSize="13"
+        Title="Racing Studio" Height="780" Width="1080" MinWidth="880" MinHeight="640"
+        Background="{StaticResource Mask}" Foreground="{StaticResource Silk}"
+        FontFamily="{StaticResource Body}" FontSize="13"
+        TextOptions.TextFormattingMode="Display" UseLayoutRounding="True"
         Icon="pack://application:,,,/app.ico"
         Loaded="OnLoaded" Closing="OnClosing" Closed="OnClosed">
 
     <Window.Resources>
         <DataTemplate x:Key="SensorTemplate">
-            <Grid Margin="0,3">
+            <Grid Margin="0,4">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="{Binding Label}" Foreground="#C8CCD4" />
-                <TextBlock Grid.Column="1" Text="{Binding ValueText}" FontFamily="Consolas" />
+                <TextBlock Text="{Binding Label}" Foreground="{StaticResource SilkDim}" TextTrimming="CharacterEllipsis"
+                           ToolTip="{Binding Label}" Margin="0,0,10,0" />
+                <TextBlock Grid.Column="1" Text="{Binding ValueText}" Style="{StaticResource Reading}" />
             </Grid>
         </DataTemplate>
 
         <DataTemplate x:Key="FanTemplate" DataType="{x:Type local:FanChannelView}">
-            <Border BorderBrush="#2C313A" BorderThickness="0,0,0,1" Padding="0,8">
+            <Border Style="{StaticResource Footprint}" Margin="0,0,0,12">
                 <StackPanel>
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="{Binding Label}" Foreground="#C8CCD4" />
-                        <TextBlock Grid.Column="1" Text="{Binding StatusText}" FontFamily="Consolas" />
+                        <TextBlock Text="{Binding Label}" Style="{StaticResource Designator}" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1" Text="{Binding StatusText}" Style="{StaticResource Reading}" FontSize="17"
+                                   VerticalAlignment="Center" />
                     </Grid>
-                    <ComboBox Width="220" HorizontalAlignment="Left" Margin="0,6,0,0" SelectedIndex="{Binding ModeIndex}">
-                        <ComboBoxItem Content="Automático (BIOS)" />
-                        <ComboBoxItem Content="Velocidade fixa" />
-                        <ComboBoxItem Content="Curva por temperatura" />
-                    </ComboBox>
 
-                    <Grid Margin="0,6,0,0" Visibility="{Binding FixedVisibility}">
+                    <ListBox Style="{StaticResource Segmented}" Margin="0,12,0,0" SelectedIndex="{Binding ModeIndex}">
+                        <ListBoxItem Content="BIOS" ToolTip="O BIOS controla esta fan" />
+                        <ListBoxItem Content="Fixa" ToolTip="Velocidade fixa" />
+                        <ListBoxItem Content="Curva" ToolTip="Velocidade pela temperatura" />
+                    </ListBox>
+
+                    <Grid Margin="0,14,0,0" Visibility="{Binding FixedVisibility}">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition />
-                            <ColumnDefinition Width="48" />
+                            <ColumnDefinition Width="56" />
                         </Grid.ColumnDefinitions>
                         <Slider Minimum="{Binding MinPercent}" Maximum="100" Value="{Binding FixedPercent}"
                                 VerticalAlignment="Center" IsSnapToTickEnabled="True" TickFrequency="1" />
-                        <TextBlock Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right" FontFamily="Consolas"
+                        <TextBlock Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right" Style="{StaticResource Reading}"
                                    Text="{Binding FixedPercent, StringFormat={}{0:0} %}" />
                     </Grid>
 
-                    <StackPanel Margin="0,6,0,0" Visibility="{Binding CurveVisibility}">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="segue" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="#9AA0AA" />
-                            <ComboBox Width="220" ItemsSource="{Binding Sources}" DisplayMemberPath="Label"
+                    <WrapPanel Margin="0,14,0,0" Visibility="{Binding CurveVisibility}">
+                        <StackPanel Orientation="Horizontal" Margin="0,0,18,6">
+                            <TextBlock Text="Segue" Style="{StaticResource Inline}" Margin="0,0,8,0" />
+                            <ComboBox Width="210" ItemsSource="{Binding Sources}" DisplayMemberPath="Label"
                                       SelectedValuePath="Key" SelectedValue="{Binding SourceKey}" />
                         </StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                            <TextBox Width="40" Text="{Binding TempLow, UpdateSourceTrigger=PropertyChanged}" />
-                            <TextBlock Text="°C →" VerticalAlignment="Center" Margin="4,0" Foreground="#9AA0AA" />
-                            <TextBox Width="40" Text="{Binding PercentLow, UpdateSourceTrigger=PropertyChanged}" />
-                            <TextBlock Text="%   até" VerticalAlignment="Center" Margin="4,0" Foreground="#9AA0AA" />
-                            <TextBox Width="40" Text="{Binding TempHigh, UpdateSourceTrigger=PropertyChanged}" />
-                            <TextBlock Text="°C →" VerticalAlignment="Center" Margin="4,0" Foreground="#9AA0AA" />
-                            <TextBox Width="40" Text="{Binding PercentHigh, UpdateSourceTrigger=PropertyChanged}" />
-                            <TextBlock Text="%" VerticalAlignment="Center" Margin="4,0,0,0" Foreground="#9AA0AA" />
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                            <TextBox Width="52" Text="{Binding TempLow, UpdateSourceTrigger=PropertyChanged}" />
+                            <TextBlock Text="°C →" Style="{StaticResource Inline}" />
+                            <TextBox Width="52" Text="{Binding PercentLow, UpdateSourceTrigger=PropertyChanged}" />
+                            <TextBlock Text="%, até" Style="{StaticResource Inline}" />
+                            <TextBox Width="52" Text="{Binding TempHigh, UpdateSourceTrigger=PropertyChanged}" />
+                            <TextBlock Text="°C →" Style="{StaticResource Inline}" />
+                            <TextBox Width="52" Text="{Binding PercentHigh, UpdateSourceTrigger=PropertyChanged}" />
+                            <TextBlock Text="%" Style="{StaticResource Inline}" Margin="6,0,0,0" />
                         </StackPanel>
-                    </StackPanel>
+                    </WrapPanel>
                 </StackPanel>
             </Border>
         </DataTemplate>
     </Window.Resources>
 
     <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition />
-        </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="292" />
             <ColumnDefinition />
-            <ColumnDefinition Width="390" />
         </Grid.ColumnDefinitions>
 
-        <TextBlock x:Name="BoardText" Grid.ColumnSpan="2" Margin="16,12,16,0" Foreground="#9AA0AA"
-                   TextWrapping="Wrap" Text="Carregando hardware..." />
-
-        <Grid Grid.Row="1">
-            <Grid.RowDefinitions>
-                <RowDefinition />
-                <RowDefinition />
-            </Grid.RowDefinitions>
-
-            <Border Style="{StaticResource Card}">
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <StackPanel>
-                        <TextBlock Text="Monitoramento" Style="{StaticResource Header}" />
-                        <TextBlock Text="TEMPERATURAS" Style="{StaticResource SubHeader}" />
+        <!-- Sensors: always in view, whatever page is open. -->
+        <Border Background="{StaticResource Zone}">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Top" Margin="24,22,24,4">
+                    <TextBlock Text="Racing Studio" Style="{StaticResource AppTitle}" />
+                    <TextBlock x:Name="BoardText" Style="{StaticResource Hint}" Margin="0,4,0,0" Text="Carregando hardware..." />
+                </StackPanel>
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="24,0,16,20">
+                    <StackPanel Margin="0,0,8,0">
+                        <TextBlock Text="Temperaturas" Style="{StaticResource GroupTitle}" />
                         <ItemsControl x:Name="TemperatureList" ItemTemplate="{StaticResource SensorTemplate}" />
-                        <TextBlock Text="FANS" Style="{StaticResource SubHeader}" />
+                        <TextBlock Text="Fans" Style="{StaticResource GroupTitle}" />
                         <ItemsControl x:Name="FanList" ItemTemplate="{StaticResource SensorTemplate}" />
-                        <TextBlock Text="TENSÕES" Style="{StaticResource SubHeader}" />
+                        <TextBlock Text="Tensões" Style="{StaticResource GroupTitle}" />
                         <ItemsControl x:Name="VoltageList" ItemTemplate="{StaticResource SensorTemplate}" />
                     </StackPanel>
                 </ScrollViewer>
-            </Border>
-
-            <Border Grid.Row="1" Style="{StaticResource Card}">
-                <DockPanel>
-                    <TextBlock DockPanel.Dock="Top" Text="Controle das fans" Style="{StaticResource Header}" />
-                    <StackPanel DockPanel.Dock="Bottom" Margin="0,10,0,0">
-                        <StackPanel Orientation="Horizontal">
-                            <Button x:Name="FanApplyButton" Content="Aplicar nas fans" Click="OnFanApply" IsEnabled="False" />
-                            <Button x:Name="FanBiosButton" Content="Tudo no BIOS" Click="OnFanBios" IsEnabled="False" />
-                        </StackPanel>
-                        <TextBlock x:Name="FanStatus" TextWrapping="Wrap" Margin="0,8,0,0" Foreground="#9AA0AA" FontSize="12"
-                                   Text="Procurando as saídas PWM do Super I/O..." />
-                    </StackPanel>
-                    <ScrollViewer VerticalScrollBarVisibility="Auto">
-                        <ItemsControl x:Name="FanControlList" ItemTemplate="{StaticResource FanTemplate}" />
-                    </ScrollViewer>
-                </DockPanel>
-            </Border>
-        </Grid>
-
-        <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource Card}">
-            <DockPanel>
-                <TextBlock DockPanel.Dock="Top" Text="Iluminação" Style="{StaticResource Header}" />
-                <CheckBox x:Name="SyncCheck" DockPanel.Dock="Top" Margin="0,0,0,10" IsChecked="True"
-                          Checked="OnSyncChanged" Unchecked="OnSyncChanged"
-                          Content="Sincronizar memórias com a placa" />
-
-                <StackPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
-                    <StackPanel Orientation="Horizontal">
-                        <Button x:Name="ApplyButton" Content="Aplicar" Click="OnApply" IsEnabled="False" />
-                        <Button x:Name="RestoreButton" Content="Restaurar original" Click="OnRestore" IsEnabled="False" />
-                    </StackPanel>
-                    <CheckBox x:Name="StartupCheck" Margin="0,10,0,0" IsEnabled="False"
-                              Checked="OnStartupChanged" Unchecked="OnStartupChanged"
-                              Content="Abrir o Racing Studio com o Windows (na bandeja)" />
-                    <TextBlock x:Name="StartupStatus" TextWrapping="Wrap" Margin="20,2,0,0" Foreground="#9AA0AA" FontSize="12" />
-                    <TextBlock x:Name="LedStatus" TextWrapping="Wrap" Margin="0,10,0,0" Foreground="#9AA0AA" FontSize="12"
-                               Text="Placa: procurando o controlador de LEDs..." />
-                    <TextBlock x:Name="RamStatus" TextWrapping="Wrap" Margin="0,4,0,0" Foreground="#9AA0AA" FontSize="12"
-                               Text="Memórias: procurando o controlador..." />
-                    <TextBlock x:Name="AppEffectStatus" TextWrapping="Wrap" Margin="0,4,0,0" Foreground="#E0B860" FontSize="12"
-                               Visibility="Collapsed" />
-                </StackPanel>
-
-                <TabControl x:Name="Tabs" Background="Transparent" BorderBrush="#3A404B" Padding="10,4">
-                    <TabItem Header="Placa (5V)">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <local:LedEditor x:Name="BoardEditor" IsEnabled="False" />
-                        </ScrollViewer>
-                    </TabItem>
-                    <TabItem Header="Memórias RAM">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <StackPanel>
-                                <TextBlock x:Name="RamSyncNote" TextWrapping="Wrap" Margin="0,8,0,0" Foreground="#E0B860"
-                                           Text="Sincronizado: as memórias seguem a cor e o efeito da placa. Desmarque &quot;Sincronizar&quot; para configurá-las separadamente." />
-                                <local:LedEditor x:Name="RamEditor" ShowSpeed="False" IsEnabled="False" />
-                            </StackPanel>
-                        </ScrollViewer>
-                    </TabItem>
-                </TabControl>
             </DockPanel>
         </Border>
+
+        <TabControl x:Name="Pages" Grid.Column="1" Style="{StaticResource NavTabs}" Margin="32,18,32,22">
+            <TabItem Header="Iluminação">
+                <DockPanel>
+                    <Border DockPanel.Dock="Bottom" BorderBrush="{StaticResource Trace}" BorderThickness="0,1,0,0"
+                            Padding="0,16,0,0" Margin="0,14,0,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Top">
+                                <Button x:Name="ApplyButton" Style="{StaticResource PrimaryButton}" Content="Aplicar iluminação"
+                                        Click="OnApply" IsEnabled="False" Margin="0,0,10,0" />
+                                <Button x:Name="RestoreButton" Content="Restaurar original" Click="OnRestore" IsEnabled="False" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="24,0,0,0">
+                                <TextBlock x:Name="LedStatus" Style="{StaticResource Hint}" Text="Placa: procurando o controlador de LEDs..." />
+                                <TextBlock x:Name="RamStatus" Style="{StaticResource Hint}" Text="Memórias: procurando o controlador..." />
+                                <TextBlock x:Name="AppEffectStatus" Style="{StaticResource Hint}" Foreground="{StaticResource Pad}"
+                                           Visibility="Collapsed" />
+                            </StackPanel>
+                            <StackPanel Grid.Row="1" Grid.ColumnSpan="2" Margin="0,16,0,0">
+                                <CheckBox x:Name="StartupCheck" IsEnabled="False"
+                                          Checked="OnStartupChanged" Unchecked="OnStartupChanged"
+                                          Content="Abrir o Racing Studio com o Windows, na bandeja" />
+                                <TextBlock x:Name="StartupStatus" Style="{StaticResource Hint}" Margin="44,4,0,0" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <Grid>
+                        <TabControl x:Name="Tabs" Style="{StaticResource SegmentTabs}">
+                            <TabItem Header="Placa (5V)">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <local:LedEditor x:Name="BoardEditor" IsEnabled="False" Margin="0,0,12,0" />
+                                </ScrollViewer>
+                            </TabItem>
+                            <TabItem Header="Memórias RAM">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <StackPanel Margin="0,0,12,0">
+                                        <TextBlock x:Name="RamSyncNote" Style="{StaticResource Hint}" Margin="0,0,0,12"
+                                                   Text="As memórias estão seguindo a cor e o efeito da placa. Desligue &quot;Sincronizar memórias com a placa&quot; para configurá-las separadamente." />
+                                        <local:LedEditor x:Name="RamEditor" ShowSpeed="False" IsEnabled="False" />
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </TabItem>
+                        </TabControl>
+                        <CheckBox x:Name="SyncCheck" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,7,0,0"
+                                  IsChecked="True" Checked="OnSyncChanged" Unchecked="OnSyncChanged"
+                                  Content="Sincronizar memórias com a placa" />
+                    </Grid>
+                </DockPanel>
+            </TabItem>
+
+            <TabItem Header="Fans">
+                <DockPanel>
+                    <Border DockPanel.Dock="Bottom" BorderBrush="{StaticResource Trace}" BorderThickness="0,1,0,0"
+                            Padding="0,16,0,0" Margin="0,2,0,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Top">
+                                <Button x:Name="FanApplyButton" Style="{StaticResource PrimaryButton}" Content="Aplicar nas fans"
+                                        Click="OnFanApply" IsEnabled="False" Margin="0,0,10,0" />
+                                <Button x:Name="FanBiosButton" Content="Devolver tudo ao BIOS" Click="OnFanBios" IsEnabled="False" />
+                            </StackPanel>
+                            <TextBlock x:Name="FanStatus" Grid.Column="1" Margin="24,0,0,0"
+                                       Text="Procurando as saídas PWM do Super I/O...">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource Hint}">
+                                        <Style.Triggers>
+                                            <!-- With no fans the reason is shown in the middle of the page instead. -->
+                                            <DataTrigger Binding="{Binding HasItems, ElementName=FanControlList}" Value="False">
+                                                <Setter Property="Visibility" Value="Hidden" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Grid>
+                    </Border>
+                    <Grid>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <ItemsControl x:Name="FanControlList" ItemTemplate="{StaticResource FanTemplate}" Margin="0,0,12,0" />
+                        </ScrollViewer>
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="420">
+                            <StackPanel.Style>
+                                <Style TargetType="StackPanel">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasItems, ElementName=FanControlList}" Value="False">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </StackPanel.Style>
+                            <TextBlock Text="Nenhuma fan para controlar" Style="{StaticResource Designator}" FontSize="18"
+                                       HorizontalAlignment="Center" />
+                            <TextBlock Text="{Binding Text, ElementName=FanStatus}" Style="{StaticResource Hint}" FontSize="13"
+                                       TextAlignment="Center" Margin="0,8,0,0" />
+                        </StackPanel>
+                    </Grid>
+                </DockPanel>
+            </TabItem>
+        </TabControl>
     </Grid>
 </Window>

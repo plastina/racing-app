@@ -30,9 +30,9 @@ public partial class LedEditor : UserControl
         {
             var swatch = new Button
             {
-                Width = 26,
-                Height = 26,
-                Margin = new Thickness(0, 0, 6, 6),
+                Width = 28,
+                Height = 28,
+                Margin = new Thickness(0, 0, 8, 8),
                 Padding = new Thickness(0),
                 Background = new SolidColorBrush(ToMedia(color)),
                 ToolTip = color.ToString(),
@@ -85,7 +85,7 @@ public partial class LedEditor : UserControl
             BlueSlider.Value = value.B;
             _syncingInputs = false;
             HexBox.Text = value.ToString();
-            Preview.Background = new SolidColorBrush(ToMedia(value));
+            UpdatePreview();
         }
     }
 
@@ -179,6 +179,36 @@ public partial class LedEditor : UserControl
         CyclePanel.Visibility = kind is not null and not SoftEffectKind.Temperature ? Visibility.Visible : Visibility.Collapsed;
         SpeedPanel.Visibility = kind is null && _showSpeed ? Visibility.Visible : Visibility.Collapsed;
         AppEffectNote.Visibility = kind is null ? Visibility.Collapsed : Visibility.Visible;
+        UpdatePreview();
+    }
+
+    /// <summary>Lights the preview strip the way the selected effect will: one colour, or the effect's colour range.</summary>
+    private void UpdatePreview()
+    {
+        if (Preview is null || EffectBox is null)
+            return;
+
+        List<Rgb> colors = (EffectBox.SelectedItem as SoftEffectOption)?.Kind switch
+        {
+            SoftEffectKind.Temperature => new List<Rgb> { TemperatureEffect.Cold, TemperatureEffect.Warm, TemperatureEffect.Hot },
+            SoftEffectKind.Gradient => new[] { Gradient1Box.Text, Gradient2Box.Text, Gradient3Box.Text }
+                .Select(TryParseColor).OfType<Rgb>().ToList(),
+            _ => new List<Rgb>(),
+        };
+        if (colors.Count == 0)
+            colors.Add(Color);
+
+        if (colors.Count == 1)
+        {
+            Preview.Background = new SolidColorBrush(ToMedia(colors[0]));
+        }
+        else
+        {
+            var stops = new GradientStopCollection(colors.Select((c, i) => new GradientStop(ToMedia(c), i / (colors.Count - 1.0))));
+            Preview.Background = new LinearGradientBrush(stops, new Point(0, 0.5), new Point(1, 0.5));
+        }
+
+        PreviewGlow.Color = ToMedia(colors[colors.Count / 2]);
     }
 
     private void OnSliderChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -186,9 +216,8 @@ public partial class LedEditor : UserControl
         if (_syncingInputs)
             return;
 
-        Rgb color = Color;
-        Preview.Background = new SolidColorBrush(ToMedia(color));
-        HexBox.Text = color.ToString();
+        HexBox.Text = Color.ToString();
+        UpdatePreview();
     }
 
     private void OnSpeedChanged(object sender, RoutedPropertyChangedEventArgs<double> e) =>
@@ -219,6 +248,7 @@ public partial class LedEditor : UserControl
 
         foreach (var (box, preview) in new[] { (Gradient1Box, Gradient1Preview), (Gradient2Box, Gradient2Preview), (Gradient3Box, Gradient3Preview) })
             preview.Background = TryParseColor(box.Text) is Rgb c ? new SolidColorBrush(ToMedia(c)) : Brushes.Transparent;
+        UpdatePreview();
     }
 
     private static Rgb? TryParseColor(string text)

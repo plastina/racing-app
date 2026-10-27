@@ -41,9 +41,9 @@ public interface ISoftwareEffect
 /// <summary>Blue (cold) → green → red (hot) following the CPU temperature, smoothed over time.</summary>
 public sealed class TemperatureEffect : ISoftwareEffect
 {
-    private static readonly Rgb Cold = new(0x00, 0x50, 0xFF);
-    private static readonly Rgb Warm = new(0x00, 0xFF, 0x40);
-    private static readonly Rgb Hot = new(0xFF, 0x00, 0x00);
+    internal static readonly Rgb Cold = new(0x00, 0x50, 0xFF);
+    internal static readonly Rgb Warm = new(0x00, 0xFF, 0x40);
+    internal static readonly Rgb Hot = new(0xFF, 0x00, 0x00);
 
     private readonly Func<float?> _temperature;
     private readonly float _min;
