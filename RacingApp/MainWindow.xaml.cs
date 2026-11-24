@@ -38,6 +38,7 @@ public partial class MainWindow : Window
     private readonly TrayIcon _tray;
     private bool _exitRequested;
     private bool _trayHintShown;
+    private bool _initialized;
     private UpdateInfo? _pendingUpdate;
 
     public MainWindow()
@@ -117,14 +118,26 @@ public partial class MainWindow : Window
 
     private float? CpuTemperature() => float.IsNaN(_cpuTemperature) ? null : _cpuTemperature;
 
+    /// <summary>
+    /// Tray start: creates the native window (needed for the title bar colours and for Close) and sets up the hardware
+    /// without ever showing it, so the first <see cref="ShowFromTray"/> opens it in its normal size and position.
+    /// </summary>
+    public void StartHidden()
+    {
+        new WindowInteropHelper(this).EnsureHandle();
+        OnLoaded(this, new RoutedEventArgs()); // async void, like the real Loaded: a failure still surfaces
+    }
+
+    // Loaded also fires the first time a tray-started window is shown; by then it is already initialised.
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
-        if (StartInTray)
-        {
-            Hide();
-            ShowInTaskbar = true;
-            WindowState = WindowState.Normal;
-        }
+        if (!_initialized)
+            await InitializeAsync();
+    }
+
+    private async Task InitializeAsync()
+    {
+        _initialized = true;
 
         // Started now, offered once the hardware is set up so an update never closes the app halfway through it.
         Task<UpdateInfo?> updateCheck = Updater.CheckAsync();

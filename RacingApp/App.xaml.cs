@@ -41,12 +41,15 @@ public partial class App : Application
         var window = new MainWindow { StartInTray = startInTray };
         if (startInTray)
         {
-            // Avoid a flash while the window initialises; OnLoaded hides it.
-            window.WindowState = WindowState.Minimized;
-            window.ShowInTaskbar = false;
+            // Never shown until the tray icon is clicked. Showing it minimized and hiding it afterwards left the
+            // native window iconic, so the first "Abrir" brought back a minimized stub instead of the window.
+            window.StartHidden();
+        }
+        else
+        {
+            window.Show();
         }
 
-        window.Show();
         SessionEnding += (_, _) => window.PrepareForSessionEnd();
 
         var listener = new Thread(() =>
