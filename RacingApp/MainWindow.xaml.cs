@@ -120,7 +120,8 @@ public partial class MainWindow : Window
 
     /// <summary>
     /// Tray start: creates the native window (needed for the title bar colours and for Close) and sets up the hardware
-    /// without ever showing it, so the first <see cref="ShowFromTray"/> opens it in its normal size and position.
+    /// without ever showing it, so the first <see cref="ShowFromTray"/> opens it in its normal size, centred on screen
+    /// (WPF applies WindowStartupLocation when the handle is created, not when the window is first shown).
     /// </summary>
     public void StartHidden()
     {
