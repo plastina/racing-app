@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:RacingApp"
         Title="Racing Studio" Height="780" Width="1080" MinWidth="880" MinHeight="640"
+        WindowStartupLocation="CenterScreen"
         Background="{StaticResource Mask}" Foreground="{StaticResource Silk}"
         FontFamily="{StaticResource Body}" FontSize="13"
         TextOptions.TextFormattingMode="Display" UseLayoutRounding="True"
